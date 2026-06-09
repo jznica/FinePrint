@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FINEPRINT — Contract Redliner</title>
+<meta name="description" content="Upload any contract. Fineprint marks the dangerous clauses, scores the risk, and tells you what to say back." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --paper:#EDEDE7; --card:#FFFFFF; --bond:#F7F7F2;
+    --ink:#0D0D0D; --ink-2:#565651; --ink-3:#9A9A93;
+    --line:#1A1A1A1A; --rule:#D5D5CD;
+    --red:#E2231A; --red-d:#B71810;
+    --hi:#E2231A;  --hi-bg:#FBE7E5;
+    --md:#C2840F;  --md-bg:#F8F0DD;
+    --lo:#3C5C8C;  --lo-bg:#E9EEF6;
+    --keep:#1F7A4D;--keep-bg:#E6F1EB;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:"Inter",system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+  .disp{font-family:"Archivo",system-ui,sans-serif;font-weight:900;letter-spacing:-.025em;line-height:.92}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+  button{font-family:inherit;cursor:pointer}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--red);color:#fff}
+
+  /* top bar */
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:18px 0;border-bottom:2px solid var(--ink)}
+  .brand{font-family:"Archivo";font-weight:900;font-size:22px;letter-spacing:-.03em;display:flex;align-items:center;gap:2px}
+  .brand sup{color:var(--red);font-size:11px;font-weight:700;margin-left:2px}
+  .bar-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{background:none;border:1.5px solid var(--ink);color:var(--ink);padding:9px 16px;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;transition:background .12s,color .12s}
+  .btn:hover{background:var(--ink);color:var(--paper)}
+  .btn.red{border-color:var(--red);color:var(--red)}
+  .btn.red:hover{background:var(--red);color:#fff}
+  .btn.solid{background:var(--ink);color:var(--paper)}
+  .btn.solid:hover{background:var(--red);border-color:var(--red)}
+
+  /* hero */
+  .hero{padding:54px 0 36px}
+  .kick{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-2);margin:0 0 22px;display:flex;gap:12px;align-items:center}
+  .kick b{color:var(--red);font-weight:500}
+  .hero h1{font-family:"Archivo";font-weight:900;letter-spacing:-.035em;line-height:.9;font-size:clamp(54px,11vw,132px);margin:0 0 26px;text-transform:uppercase}
+  .hero h1 em{font-style:normal;color:var(--red)}
+  .hgrid{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:end}
+  .hero .lede{font-size:19px;line-height:1.45;color:var(--ink-2);max-width:430px;margin:0 0 26px}
+  .drop{border:2px solid var(--ink);background:var(--card);padding:26px;transition:background .12s}
+  .drop.over{background:var(--bond);border-color:var(--red)}
+  .drop .dlabel{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:0 0 14px}
+  .drop .big{font-family:"Archivo";font-weight:800;font-size:23px;letter-spacing:-.02em;margin:0 0 18px;line-height:1.05}
+  .drow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .pick{background:var(--ink);color:var(--paper);border:none;padding:13px 22px;font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;transition:background .12s}
+  .pick:hover{background:var(--red)}
+  .sample-link{background:none;border:none;color:var(--ink);font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid var(--red);padding:3px 0}
+  .trustrow{margin-top:18px;display:flex;gap:22px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .trustrow span::before{content:"+ "}
+
+  /* hero floating sheet (parallax 3D) */
+  .scene{perspective:1400px}
+  .float{transform-style:preserve-3d;transition:transform .2s ease-out;will-change:transform}
+  .hfloat{position:relative;aspect-ratio:4/3;background:linear-gradient(160deg,#fff,#f1f1ec);border:1px solid var(--rule);box-shadow:0 30px 60px rgba(0,0,0,.16);padding:30px 30px 30px 44px}
+  .hfloat::before{content:"";position:absolute;left:30px;top:18px;bottom:18px;width:1px;background:var(--rule)}
+  .hfloat .reg{position:absolute;top:18px;right:22px;font-family:"Archivo";font-weight:900;color:var(--red);font-size:20px}
+  .hbar{height:9px;background:#E6E6E0;margin:0 0 14px;border-radius:1px}
+  .hbar.r{position:relative;background:#EEDAD8}
+  .hbar.r::after{content:"";position:absolute;inset:0;box-shadow:inset 0 -3px 0 var(--red);border-radius:1px}
+  .hpin{position:absolute;right:-16px;width:34px;height:34px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono";font-size:13px;font-weight:600;box-shadow:0 12px 24px rgba(226,35,26,.35);transform:translateZ(60px)}
+
+  /* loading */
+  .scan{padding:66px 0 50px;max-width:600px}
+  .scan h2{font-family:"Archivo";font-weight:800;font-size:30px;letter-spacing:-.02em;margin:0 0 4px}
+  .scan .status{font-family:"IBM Plex Mono",monospace;color:var(--red);font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 30px;min-height:16px}
+  .doc-mock{background:var(--card);border:2px solid var(--ink);padding:28px 28px 28px 56px;position:relative;overflow:hidden}
+  .doc-mock::before{content:"";position:absolute;left:36px;top:0;bottom:0;width:1px;background:var(--rule)}
+  .ln{height:11px;background:#E6E6E0;margin:0 0 15px}
+  .ln.marked{position:relative;background:#EBEBE4}
+  .ln.marked::after{content:"";position:absolute;left:0;top:50%;height:11px;width:0;background:rgba(226,35,26,.32);transform:translateY(-50%);animation:draw 1.15s ease-in-out infinite}
+  .ln.marked.d2::after{animation-delay:.4s}.ln.marked.d3::after{animation-delay:.8s}
+  @keyframes draw{0%{width:0}55%{width:90%}100%{width:90%;opacity:.5}}
+
+  /* results */
+  .results{padding:26px 0 90px;animation:rise .4s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .grid2{display:grid;grid-template-columns:0.82fr 1fr;gap:36px;align-items:start}
+
+  .docwrap{position:sticky;top:16px}
+  .dochead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:14px;gap:10px}
+  .dochead .l{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+  .dochead .r{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3);letter-spacing:.04em}
+  .sheet{background:var(--bond);border:1px solid var(--rule);box-shadow:0 24px 50px rgba(0,0,0,.13);padding:28px 28px 28px 50px;position:relative;max-height:calc(100vh - 150px);overflow:auto}
+  .sheet::before{content:"";position:absolute;left:32px;top:0;bottom:0;width:1px;background:var(--rule)}
+  .sheet p{font-size:13px;line-height:1.85;color:var(--ink);margin:0 0 13px}
+  mark{padding:1px 1px;cursor:pointer;color:inherit;outline:2px solid transparent;transition:outline .12s}
+  mark.high{background:var(--hi-bg);box-shadow:inset 0 -3px 0 var(--hi)}
+  mark.medium{background:var(--md-bg);box-shadow:inset 0 -3px 0 var(--md)}
+  mark.low{background:var(--lo-bg);box-shadow:inset 0 -3px 0 var(--lo)}
+  mark.active.high{outline-color:var(--hi)} mark.active.medium{outline-color:var(--md)} mark.active.low{outline-color:var(--lo)}
+  @keyframes pulse{0%{outline-width:2px}40%{outline-width:6px}100%{outline-width:2px}}
+  mark.pulse{animation:pulse .7s ease}
+  .spatial-cta{margin-top:12px;text-align:center}
+
+  /* risk banner */
+  .riskbar{display:grid;grid-template-columns:1fr auto;gap:24px;border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:22px;align-items:end}
+  .doctype{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);border:1.5px solid var(--ink);padding:5px 10px;margin-bottom:14px}
+  .tldr{font-family:"Archivo";font-weight:800;font-size:clamp(24px,3.3vw,38px);letter-spacing:-.025em;line-height:1.02;margin:0}
+  .risk{text-align:right;min-width:140px}
+  .risk .rl-lab{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}
+  .risk .num{font-family:"Archivo";font-weight:900;font-size:74px;line-height:.85;letter-spacing:-.04em}
+  .risk .num small{font-size:24px;color:var(--ink-3);font-weight:700}
+  .risk .gauge{height:5px;background:#D5D5CD;margin:8px 0 6px;position:relative}
+  .risk .gauge i{position:absolute;left:0;top:0;bottom:0}
+  .risk .band{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:500}
+
+  .summary{font-size:15px;color:var(--ink-2);max-width:640px}
+  .summary p{margin:0 0 9px}
+  .note-ok{border:1.5px solid var(--keep);color:var(--keep);background:var(--keep-bg);padding:13px 15px;font-size:14px;margin-top:14px}
+
+  .block{margin-top:34px}
+  .sh{display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--ink);padding-bottom:7px;margin-bottom:16px}
+  .sh .n{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--red);font-weight:500}
+  .sh h3{font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:.16em;text-transform:uppercase;margin:0;font-weight:500;flex:1}
+  .sh .c{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-3)}
+  .legend{display:flex;gap:12px}
+  .legend i{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);font-style:normal;display:flex;align-items:center;gap:5px}
+  .legend i b{width:8px;height:8px;display:inline-block}
+
+  .rl{display:grid;grid-template-columns:64px 1fr;border:1px solid var(--rule);background:var(--card);margin:0 0 10px;cursor:pointer;transition:border-color .12s,transform .12s}
+  .rl:hover{transform:translateX(2px)}
+  .rl .idx{border-right:1px solid var(--rule);padding:14px 8px;text-align:center;font-family:"IBM Plex Mono",monospace}
+  .rl .idx .no{font-family:"Archivo";font-weight:900;font-size:22px;letter-spacing:-.03em;line-height:1}
+  .rl .idx .sv{font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-top:7px;font-weight:500}
+  .rl .idx .rf{font-size:10px;color:var(--ink-3);margin-top:5px}
+  .rl .main{padding:14px 16px}
+  .rl .issue{font-family:"Archivo";font-weight:700;font-size:17px;letter-spacing:-.015em;margin:0 0 7px;line-height:1.15}
+  .rl .clause{font-size:13px;line-height:1.6;display:inline}
+  .rl .why{font-size:13.5px;color:var(--ink-2);margin:7px 0 0}
+  .rl .fix{margin-top:10px;border-left:3px solid var(--red);background:var(--bond);padding:8px 12px;font-size:13px}
+  .rl .fix b{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);display:block;margin-bottom:3px}
+  .rl.high{border-left:4px solid var(--hi)} .rl.high .no{color:var(--hi)} .rl.high .sv{color:var(--hi)} .rl.high .clause{background:linear-gradient(transparent 60%,var(--hi-bg) 60%)}
+  .rl.medium{border-left:4px solid var(--md)} .rl.medium .no{color:var(--md)} .rl.medium .sv{color:var(--md)} .rl.medium .clause{background:linear-gradient(transparent 60%,var(--md-bg) 60%)} .rl.medium .fix{border-color:var(--md)} .rl.medium .fix b{color:var(--md)}
+  .rl.low{border-left:4px solid var(--lo)} .rl.low .no{color:var(--lo)} .rl.low .sv{color:var(--lo)} .rl.low .clause{background:linear-gradient(transparent 60%,var(--lo-bg) 60%)} .rl.low .fix{border-color:var(--lo)} .rl.low .fix b{color:var(--lo)}
+  .rl.active{border-color:var(--ink)}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);background:var(--card)}
+  .obl{padding:16px 18px}
+  .obl.you{border-right:1px solid var(--rule)}
+  .obl h4{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:0 0 11px;font-weight:500}
+  .obl.them h4{color:var(--keep)}
+  .obl ul{margin:0;padding:0;list-style:none}
+  .obl li{font-size:13.5px;color:var(--ink-2);padding:7px 0 7px 16px;position:relative;border-top:1px solid var(--rule)}
+  .obl li:first-child{border-top:none}
+  .obl li::before{content:"";position:absolute;left:0;top:14px;width:6px;height:6px;background:var(--ink-3)}
+  .obl.them li::before{background:var(--keep)}
+
+  .terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));border-top:1px solid var(--rule);border-left:1px solid var(--rule);background:var(--card)}
+  .term{padding:13px 15px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+  .term .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+  .term .v{font-family:"Archivo";font-weight:800;font-size:18px;letter-spacing:-.02em}
+  .term .flag{display:inline-block;margin-top:8px;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--red);border:1px solid var(--red);padding:2px 6px;letter-spacing:.04em}
+
+  .ask{border:1px solid var(--rule);background:var(--card);padding:18px}
+  .qa{margin-bottom:14px}
+  .qa .q{font-family:"Archivo";font-weight:700;font-size:15.5px;margin:0 0 6px}
+  .qa .q::before{content:"Q";font-family:"IBM Plex Mono",monospace;color:var(--red);font-size:12px;margin-right:8px}
+  .qa .a{font-size:14px;color:var(--ink-2);margin:0;padding-left:18px;border-left:2px solid var(--rule)}
+  .qa .a.pending{color:var(--ink-3);font-style:italic}
+  .qa .a strong{color:var(--ink);font-weight:600}
+  .qa .a code{font-family:"IBM Plex Mono",monospace;font-size:12.5px;background:var(--bond);border:1px solid var(--rule);padding:1px 5px}
+  .askrow{display:flex;gap:8px;margin-top:4px}
+  .askrow input{flex:1;border:1.5px solid var(--ink);background:var(--paper);padding:11px 14px;font-size:15px;font-family:inherit}
+  .askrow input:focus{outline:none;border-color:var(--red)}
+  .askrow button{background:var(--ink);color:var(--paper);border:none;padding:0 20px;font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  .askrow button:disabled{opacity:.4;cursor:default}
+  .suggest{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+  .suggest button{background:none;border:1px solid var(--rule);padding:7px 12px;font-size:12.5px;color:var(--ink-2)}
+  .suggest button:hover{border-color:var(--ink);color:var(--ink)}
+
+  .empty{max-width:600px;margin:40px auto 16px;text-align:center;padding:24px}
+  .empty .doctype{margin-bottom:20px}
+  .empty-h{font-family:"Archivo";font-weight:900;font-size:clamp(30px,5vw,46px);letter-spacing:-.03em;text-transform:uppercase;margin:0 0 14px;line-height:.95}
+  .empty-p{font-size:16px;color:var(--ink-2);margin:0 auto 26px;max-width:460px}
+  .empty-actions{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap}
+
+  .err{border:1.5px solid var(--red);color:var(--red);background:var(--hi-bg);padding:14px 16px;font-size:14.5px;margin-top:18px}
+  .foot{border-top:2px solid var(--ink);padding:18px 0;color:var(--ink-3);font-size:11px;font-family:"IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+  /* SPATIAL VIEW */
+  .spatial{position:fixed;inset:0;z-index:60;background:radial-gradient(circle at 50% 28%,#1c1c1c,#070707);color:#EDEDE7;display:flex;flex-direction:column;animation:fade .25s ease both}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sp-top{display:flex;justify-content:space-between;align-items:center;padding:18px 24px}
+  .sp-top .mono{font-family:"IBM Plex Mono",monospace;letter-spacing:.2em;font-size:11px;color:#aaaaa3;text-transform:uppercase}
+  .sp-close{background:none;border:1px solid #ffffff33;color:#fff;padding:8px 14px;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+  .sp-close:hover{background:var(--red);border-color:var(--red)}
+  .sp-stage{flex:1;perspective:1700px;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab;overflow:hidden}
+  .sp-stage:active{cursor:grabbing}
+  .sp-rotor{position:relative;transform-style:preserve-3d;width:min(64vw,500px)}
+  .sp-page{position:relative;background:#F5F5F0;color:#141414;padding:36px 34px;box-shadow:0 50px 90px rgba(0,0,0,.55),6px 0 0 #d2d2ca,12px 0 0 #c0c0b8;max-height:60vh;overflow:hidden;transform:translateZ(0)}
+  .sp-page p{font-size:11px;line-height:1.7;margin:0 0 8px}
+  .sp-fade{position:absolute;left:0;right:0;bottom:0;height:90px;background:linear-gradient(transparent,#F5F5F0)}
+  .pin{position:absolute;left:calc(100% + 64px);transform:translateZ(85px) translateY(-50%);background:none;border:none;display:block}
+  .pin .dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.5)}
+  .pin.high .dot{background:var(--hi)} .pin.medium .dot{background:var(--md)} .pin.low .dot{background:var(--lo)}
+  .pin .line{position:absolute;right:100%;top:50%;width:64px;height:1px;background:#ffffff4d}
+  .pin.sel .dot{outline:3px solid #fff;outline-offset:2px}
+  .sp-legend{display:flex;gap:20px;justify-content:center;padding:8px 0;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#bdbdb6}
+  .sp-hint{text-align:center;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#7a7a74;padding-bottom:14px}
+  .sp-detail{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);width:min(90vw,470px);background:#141414;border:1px solid #ffffff22;padding:16px 18px;animation:rise .25s ease both}
+
+  @media (max-width:900px){
+    .grid2{grid-template-columns:1fr}
+    .docwrap{position:static;order:2}
+    .analysis{order:1}
+    .sheet{max-height:420px}
+    .hgrid{grid-template-columns:1fr}
+    .hfloat{max-width:460px}
+    .only-wide{display:none!important}
+  }
+  @media (max-width:560px){
+    .cols{grid-template-columns:1fr} .obl.you{border-right:none;border-bottom:1px solid var(--rule)}
+    .riskbar{grid-template-columns:1fr} .risk{text-align:left}
+  }
+  @media (prefers-reduced-motion:reduce){.float{transition:none}.ln.marked::after{animation:none;width:88%;opacity:.4}}
+
+  .print-header{display:none}
+  @media print{
+    body{background:#fff}
+    .no-print{display:none!important}
+    .grid2{display:block} .docwrap{display:none} .results{padding:0}
+    .print-header{display:block;border-bottom:3px solid var(--ink);padding-bottom:8px;margin-bottom:18px}
+    .print-header .pn{font-family:"Archivo";font-weight:900;font-size:22px}
+    .rl,.term,.obl{break-inside:avoid}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+/* ============================================================
+   CONFIG — change one line before going live on Vercel.
+   In the Claude preview, api.anthropic.com is handled (no key).
+   On Vercel, add a serverless function at /api/analyze that
+   forwards to Anthropic with your key, then set:
+        ENDPOINT = "/api/analyze";
+   ============================================================ */
+const ENDPOINT = "https://api.anthropic.com/v1/messages";
+const MODEL = "claude-sonnet-4-20250514";
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const REDUCED = typeof matchMedia!=="undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const SYS_ANALYZE = `You are Fineprint, an expert contract analyst who explains documents in plain English and flags risk.
+
+Rules:
+- Be precise, neutral, and actionable. This is information, not legal advice.
+- Output MUST be valid JSON only — no markdown, no code fences, no text before or after. This applies to EVERY input, including ones that are not contracts. NEVER reply with a sentence or an apology; always return the JSON object.
+- Detect the document type automatically (Residential lease, Employment agreement, Loan, SaaS terms, NDA, Insurance policy, Freelance contract, etc.).
+- If the input is NOT a contract, agreement, policy, or terms (e.g. an essay, article, notes, code, tutorial, manual, receipt): do not refuse and do not write prose. Return valid JSON with "is_contract": false, set "doc_type" to what it actually is, put one friendly sentence in "note" explaining what it is and what Fineprint reviews, set risk_score 0, and leave redlines/obligations/key_terms empty.
+- For a real contract, set "is_contract": true and leave "note" as "".
+- Each redline "excerpt" MUST be copied VERBATIM from the document — a short exact span, ideally under 12 words — so it can be located in the text. Do not paraphrase the excerpt.
+- Order redlines most-important first. Every high-risk item MUST include a concrete "suggestion": counter-language to ask for, or a negotiation tip.
+
+JSON schema (use these exact keys):
+{
+ "is_contract": true,
+ "doc_type": "string",
+ "note": "string",
+ "tl_dr": "string — one crisp sentence",
+ "risk_score": 0,
+ "summary": "string — 2-3 short plain-English paragraphs separated by \\n\\n",
+ "obligations": { "you_owe": ["string"], "they_owe": ["string"] },
+ "redlines": [ { "id":"string","risk":"high|medium|low","excerpt":"string","issue":"string","explanation":"string","suggestion":"string","clause_ref":"string" } ],
+ "key_terms": [ { "term":"string","meaning":"string","risk_note":"string" } ],
+ "qa_ready": true
+}
+risk_score is 0-10 where 10 = very one-sided/risky. Use "" or [] when unknown. At most 8 redlines. Never invent clauses that are not in the document.`;
+
+const SYS_QA = `You are Fineprint. Answer using ONLY the attached document. Be concise and practical, in plain English (2-4 sentences). Quote or cite the relevant clause/section when you can. If the document does not cover the question, say so plainly and note what to check or ask for. This is information, not legal advice.`;
+
+const SAMPLE_LEASE = `RESIDENTIAL RENTAL AGREEMENT
+
+1. TERM. This Agreement is for a fixed term of 11 months and shall AUTOMATICALLY RENEW for successive 12-month terms unless the Tenant gives written notice at least 90 days before expiry.
+
+2. RENT. Monthly rent is Rs. 22,000, payable on the 1st. On each renewal the Landlord may, at the Landlord's sole discretion, increase the rent by up to 25%.
+
+3. SECURITY DEPOSIT. The Tenant shall pay a deposit equal to 4 months' rent. The deposit is NON-REFUNDABLE if the Tenant vacates before the end of any term.
+
+4. LATE PAYMENT. A late fee of 10% of the outstanding rent shall apply for EACH DAY that rent is overdue.
+
+5. EARLY TERMINATION. If the Tenant vacates before the end of the term, the Tenant remains liable for the rent for all remaining months of the term.
+
+6. REPAIRS. The Tenant is responsible for ALL repairs and maintenance, including structural and major systems, at the Tenant's own cost.
+
+7. ENTRY. The Landlord may enter the premises at any time WITHOUT prior notice for inspection or any other reason.
+
+8. INDEMNITY. The Tenant shall indemnify and hold the Landlord harmless from any and all claims, damages or liabilities arising on the premises, regardless of cause.
+
+9. DISPUTES. Any dispute shall be resolved exclusively in the courts of the Landlord's home city, and the Tenant waives any right to a jury trial.`;
+
+const SAMPLE_FALLBACK = {
+  is_contract:true, doc_type:"Residential lease",
+  tl_dr:"This lease quietly auto-renews for a full year, lets the landlord raise rent up to 25%, and keeps your deposit if you leave early.",
+  risk_score:8,
+  summary:"This is an 11-month residential rental agreement that automatically rolls into full 12-month terms. Several clauses are heavily weighted toward the landlord.\n\nThe biggest exposures are the auto-renewal, a non-refundable multi-month deposit, full liability for remaining rent on early exit, and a daily-compounding late fee. Repairs, entry rights and indemnity also sit almost entirely on you.",
+  obligations:{
+    you_owe:["Pay Rs. 22,000 rent on the 1st of each month","Pay a deposit equal to 4 months' rent","Cover all repairs and maintenance, including structural","Give 90 days' written notice to stop auto-renewal","Indemnify the landlord against claims on the premises"],
+    they_owe:["Provide the premises for the agreed term","(Few other duties are stated — the agreement is one-sided)"]
+  },
+  redlines:[
+    {id:"r1",risk:"high",excerpt:"AUTOMATICALLY RENEW for successive 12-month terms",issue:"Auto-renews into a full year",explanation:"Miss the notice window and you're locked into another 12 months.",suggestion:"Ask to shorten notice to 30 days and require the landlord to send a renewal reminder first.",clause_ref:"§1"},
+    {id:"r2",risk:"high",excerpt:"NON-REFUNDABLE if the Tenant vacates before the end of any term",issue:"Deposit forfeited on early exit",explanation:"Four months' rent (~Rs. 88,000) is lost entirely if you leave early — far beyond normal deductions.",suggestion:"Strike 'non-refundable'; deposit should be returned minus documented, itemised damages only.",clause_ref:"§3"},
+    {id:"r3",risk:"high",excerpt:"liable for the rent for all remaining months of the term",issue:"You owe all remaining rent if you leave",explanation:"Combined with the lost deposit, exiting early is extremely expensive.",suggestion:"Add an exit clause: 2 months' notice + one month's rent as a cap, with re-letting offset.",clause_ref:"§5"},
+    {id:"r4",risk:"high",excerpt:"10% of the outstanding rent shall apply for EACH DAY",issue:"Late fee compounds daily",explanation:"10% per day is punitive — being a week late could exceed a full month's rent.",suggestion:"Replace with a flat fee (e.g. Rs. 500) after a 5-day grace period.",clause_ref:"§4"},
+    {id:"r5",risk:"medium",excerpt:"increase the rent by up to 25%",issue:"Rent can jump 25% on renewal",explanation:"Unilateral and uncapped beyond 25%, at the landlord's sole discretion.",suggestion:"Cap increases at 5-7% or to the local rent index, whichever is lower.",clause_ref:"§2"},
+    {id:"r6",risk:"medium",excerpt:"responsible for ALL repairs and maintenance, including structural",issue:"You pay for structural repairs",explanation:"Structural and major-system repairs are normally the landlord's responsibility.",suggestion:"Limit tenant duties to minor upkeep under a set value; landlord covers structural.",clause_ref:"§6"},
+    {id:"r7",risk:"low",excerpt:"enter the premises at any time WITHOUT prior notice",issue:"Entry with no notice",explanation:"Removes your privacy; reasonable leases require 24 hours' notice except emergencies.",suggestion:"Require 24 hours' written notice for non-emergency entry.",clause_ref:"§7"}
+  ],
+  key_terms:[
+    {term:"Rent",meaning:"Rs. 22,000 / mo",risk_note:""},
+    {term:"Deposit",meaning:"4 months",risk_note:"Non-refundable early"},
+    {term:"Term",meaning:"11 months",risk_note:"Auto-renews 12 mo"},
+    {term:"Renewal hike",meaning:"up to 25%",risk_note:"Sole discretion"},
+    {term:"Notice",meaning:"90 days",risk_note:"Easy to miss"},
+    {term:"Late fee",meaning:"10% / day",risk_note:"Compounds daily"}
+  ],
+  qa_ready:true
+};
+
+const STATUSES = ["READING THE CLAUSES","FLAGGING ONE-SIDED TERMS","SCORING THE RISK","DRAFTING COUNTER-LANGUAGE","MARKING UP THE PAGE"];
+
+function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=()=>rej(new Error("Could not read that file."));r.readAsDataURL(file);});}
+function extractJSON(text){let t=text.replace(/```json/gi,"").replace(/```/g,"").trim();const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a===-1||b===-1)throw new Error("No analysis returned.");return JSON.parse(t.slice(a,b+1));}
+async function callClaude(system,userContent){
+  const resp=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:MODEL,max_tokens:4096,system,messages:[{role:"user",content:userContent}]})});
+  if(!resp.ok) throw new Error("Service returned "+resp.status+".");
+  const data=await resp.json();
+  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+}
+function docBlock(p){
+  if(p.kind==="text") return {type:"text",text:"DOCUMENT:\n"+p.text};
+  if(p.kind==="pdf")  return {type:"document",source:{type:"base64",media_type:"application/pdf",data:p.data}};
+  return {type:"image",source:{type:"base64",media_type:p.mediaType,data:p.data}};
+}
+async function extractPdfText(file){
+  if(!window.pdfjsLib) return "";
+  try{
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let out="";
+    for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const c=await page.getTextContent();out+=c.items.map(it=>it.str).join(" ")+"\n\n";}
+    return out.replace(/[ \t]+/g," ").trim();
+  }catch(e){ return ""; }
+}
+const RANK={high:0,medium:1,low:2};
+const scoreBand=(s)=> s>=7?{label:"High risk",c:"var(--hi)"}: s>=4?{label:"Worth caution",c:"var(--md)"}:{label:"Mostly fair",c:"var(--keep)"};
+
+function fmtInline(str,kb){const out=[];const re=/\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`/g;let last=0,m,k=0;
+  while((m=re.exec(str))){if(m.index>last)out.push(str.slice(last,m.index));
+    if(m[1]!=null)out.push(<strong key={kb+"-"+k++}>{m[1]}</strong>);
+    else if(m[2]!=null)out.push(<em key={kb+"-"+k++}>{m[2]}</em>);
+    else out.push(<code key={kb+"-"+k++}>{m[3]}</code>);last=re.lastIndex;}
+  if(last<str.length)out.push(str.slice(last));return out;}
+function Answer({text}){const lines=String(text).split(/\n+/).filter(l=>l.length);
+  return <React.Fragment>{lines.map((ln,i)=><React.Fragment key={i}>{i>0&&<br/>}{fmtInline(ln,"l"+i)}</React.Fragment>)}</React.Fragment>;}
+
+function Paragraph({text, needles, activeId, markRefs, onMarkClick}){
+  const norm=text.replace(/\s+/g," ").trim();
+  const lower=norm.toLowerCase();
+  let ranges=[];
+  needles.forEach(n=>{const idx=lower.indexOf(n.needle);if(idx>=0)ranges.push({start:idx,end:idx+n.needle.length,id:n.id,risk:n.risk});});
+  ranges.sort((a,b)=>a.start-b.start);
+  const clean=[];let last=-1;ranges.forEach(r=>{if(r.start>=last){clean.push(r);last=r.end;}});
+  if(!clean.length) return <p>{norm}</p>;
+  const nodes=[];let cur=0;
+  clean.forEach((r,i)=>{
+    if(r.start>cur) nodes.push(norm.slice(cur,r.start));
+    nodes.push(<mark key={i} ref={el=>{if(el&&markRefs)markRefs.current[r.id]=el;}} className={r.risk+(activeId===r.id?" active":"")} onClick={()=>onMarkClick&&onMarkClick(r.id)}>{norm.slice(r.start,r.end)}</mark>);
+    cur=r.end;
+  });
+  if(cur<norm.length) nodes.push(norm.slice(cur));
+  return <p>{nodes}</p>;
+}
+
+/* ---------- SPATIAL REDLINE (CSS 3D orbit) ---------- */
+function SpatialView({paras, needles, redlines, onClose}){
+  const rotorRef=useRef(null);
+  const rot=useRef({x:-15,y:-22});
+  const drag=useRef(false);
+  const last=useRef({x:0,y:0});
+  const [sel,setSel]=useState(null);
+  const [activeId,setActiveId]=useState(null);
+  useEffect(()=>{
+    let raf;
+    const loop=()=>{ if(!drag.current && !REDUCED) rot.current.y+=0.12;
+      if(rotorRef.current) rotorRef.current.style.transform=`rotateX(${rot.current.x}deg) rotateY(${rot.current.y}deg)`;
+      raf=requestAnimationFrame(loop); };
+    loop();
+    const onKey=(e)=>{ if(e.key==="Escape") onClose(); };
+    window.addEventListener("keydown",onKey);
+    return ()=>{ cancelAnimationFrame(raf); window.removeEventListener("keydown",onKey); };
+  },[]);
+  const down=(e)=>{drag.current=true;last.current={x:e.clientX,y:e.clientY};};
+  const move=(e)=>{ if(!drag.current)return; const dx=e.clientX-last.current.x, dy=e.clientY-last.current.y;
+    rot.current.y+=dx*0.3; rot.current.x=Math.max(-48,Math.min(32,rot.current.x-dy*0.3)); last.current={x:e.clientX,y:e.clientY}; };
+  const up=()=>{drag.current=false;};
+  const n=redlines.length;
+  return (
+    <div className="spatial">
+      <div className="sp-top">
+        <span className="mono">Spatial redline — {n} flagged clauses</span>
+        <button className="sp-close" onClick={onClose}>✕ Close</button>
+      </div>
+      <div className="sp-stage" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}>
+        <div className="sp-rotor" ref={rotorRef}>
+          <div className="sp-page">
+            {paras.map((p,i)=><Paragraph key={i} text={p} needles={needles} activeId={activeId}/>)}
+            <div className="sp-fade"/>
+          </div>
+          {redlines.map((r,i)=>{
+            const top=n>1?6+i*(86/(n-1)):50;
+            return (
+              <button key={r.id} className={"pin "+(r.risk||"low")+(sel===i?" sel":"")} style={{top:top+"%"}}
+                onPointerDown={(e)=>e.stopPropagation()} onClick={(e)=>{e.stopPropagation();setSel(i);setActiveId(r.id);}}>
+                <span className="line"/><span className="dot">{i+1}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="sp-legend"><span style={{color:"var(--hi)"}}>● High</span><span style={{color:"var(--md)"}}>● Medium</span><span style={{color:"var(--lo)"}}>● Low</span></div>
+      <div className="sp-hint">Drag to rotate · Esc to close</div>
+      {sel!=null && redlines[sel] && (
+        <div className="sp-detail">
+          <div className="mono" style={{fontSize:11,letterSpacing:".1em",color:"#bdbdb6",marginBottom:6,textTransform:"uppercase"}}>{(redlines[sel].risk||"")+" · "+(redlines[sel].clause_ref||("#"+(sel+1)))}</div>
+          <div style={{fontWeight:600,marginBottom:6,fontSize:16}}>{redlines[sel].issue}</div>
+          {redlines[sel].suggestion && <div style={{fontSize:13,color:"#d7d7d0",lineHeight:1.5}}><b style={{color:"var(--red)"}}>COUNTER&nbsp;&nbsp;</b>{redlines[sel].suggestion}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App(){
+  const [view,setView]=useState("idle");
+  const [payload,setPayload]=useState(null);
+  const [docText,setDocText]=useState("");
+  const [docLabel,setDocLabel]=useState("The document");
+  const [fileName,setFileName]=useState("");
+  const [data,setData]=useState(null);
+  const [error,setError]=useState("");
+  const [over,setOver]=useState(false);
+  const [statusI,setStatusI]=useState(0);
+  const [qa,setQa]=useState([]);
+  const [question,setQuestion]=useState("");
+  const [asking,setAsking]=useState(false);
+  const [activeId,setActiveId]=useState(null);
+  const [spatial,setSpatial]=useState(false);
+  const inputRef=useRef(null);
+  const markRefs=useRef({});
+  const redlineRefs=useRef({});
+  const heroSheet=useRef(null);
+  const docSheet=useRef(null);
+
+  useEffect(()=>{ if(view!=="loading")return; const id=setInterval(()=>setStatusI(i=>(i+1)%STATUSES.length),1400); return ()=>clearInterval(id); },[view]);
+
+  function tilt(e,el){ if(REDUCED||!el)return; const r=e.currentTarget.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width-0.5, y=(e.clientY-r.top)/r.height-0.5;
+    el.style.transform=`rotateX(${(-y*8).toFixed(2)}deg) rotateY(${(x*11).toFixed(2)}deg)`; }
+  function untilt(el){ if(el) el.style.transform="rotateX(0deg) rotateY(0deg)"; }
+
+  async function runAnalysis(pl, text, fallback){
+    setPayload(pl); setDocText(text||""); setError(""); setQa([]); setActiveId(null); setSpatial(false);
+    markRefs.current={}; redlineRefs.current={};
+    setView("loading"); setStatusI(0);
+    try{
+      const out=await callClaude(SYS_ANALYZE,[docBlock(pl),{type:"text",text:"Analyze this document and return only the JSON described in the schema."}]);
+      let parsed;
+      try{ parsed=extractJSON(out); }
+      catch(_){ parsed={ is_contract:false, doc_type:"Not a reviewable document", tl_dr:"", risk_score:0,
+        note:(out||"").trim().slice(0,500)||"This doesn't look like a contract Fineprint can review.",
+        redlines:[], obligations:{you_owe:[],they_owe:[]}, key_terms:[] }; }
+      parsed.redlines=(parsed.redlines||[]).map((r,i)=>({id:r.id||("r"+i),...r})).sort((a,b)=>(RANK[a.risk]??3)-(RANK[b.risk]??3));
+      finalize(parsed, pl, text);
+    }catch(e){
+      if(fallback){ finalize(fallback, pl, text); }
+      else { setError("Couldn't reach the analysis service — "+e.message+" Check your connection and try again."); setView("idle"); }
+    }
+  }
+  function finalize(parsed, pl, text){
+    let t=text;
+    if(!t){ t=(parsed.redlines||[]).filter(r=>r.excerpt).map(r=>(r.clause_ref?r.clause_ref+"  ":"")+r.excerpt).join("\n\n"); setDocLabel("Flagged extracts"); }
+    else setDocLabel("The document");
+    setDocText(t); setData(parsed); setView("result");
+  }
+  async function onFile(file){
+    if(!file) return;
+    if(file.size>12*1024*1024){ setError("That file is over 12 MB. Try a smaller PDF or image."); return; }
+    const type=file.type||""; setFileName(file.name); setError("");
+    try{
+      if(type==="application/pdf"){
+        const text=await extractPdfText(file);
+        if(text && text.length>40) runAnalysis({kind:"text",text},text);
+        else runAnalysis({kind:"pdf",data:await fileToBase64(file)},"");
+      } else if(type.startsWith("image/")){ runAnalysis({kind:"image",mediaType:type,data:await fileToBase64(file)},""); }
+      else if(type==="text/plain"||file.name.endsWith(".txt")){ const text=await file.text(); runAnalysis({kind:"text",text},text); }
+      else setError("For best results upload a PDF, an image (photo/screenshot), or a .txt file.");
+    }catch(e){ setError(e.message); }
+  }
+  function loadSample(){ setFileName("sample_lease.pdf"); runAnalysis({kind:"text",text:SAMPLE_LEASE},SAMPLE_LEASE,SAMPLE_FALLBACK); }
+
+  function focusClause(id){ setActiveId(id); const el=markRefs.current[id];
+    if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.classList.add("pulse"); setTimeout(()=>el.classList.remove("pulse"),700); } }
+
+  async function ask(q){
+    const query=(q??question).trim(); if(!query||asking||!payload) return;
+    setQuestion(""); const idx=qa.length;
+    setQa(prev=>[...prev,{q:query,a:"",pending:true}]); setAsking(true);
+    try{ const a=await callClaude(SYS_QA,[docBlock(payload),{type:"text",text:"Question: "+query}]);
+      setQa(prev=>prev.map((row,i)=>i===idx?{q:query,a,pending:false}:row));
+    }catch(e){ setQa(prev=>prev.map((row,i)=>i===idx?{q:query,a:"Couldn't answer that one — the service hiccupped. Try again.",pending:false}:row)); }
+    finally{ setAsking(false); }
+  }
+  function reset(){ setView("idle");setData(null);setPayload(null);setDocText("");setFileName("");setError("");setQa([]);setActiveId(null);setSpatial(false); }
+
+  const needles=data?(data.redlines||[]).filter(r=>r.excerpt).map(r=>({id:r.id,needle:r.excerpt.replace(/\s+/g," ").trim().toLowerCase(),risk:r.risk||"low"})):[];
+  const paras=docText?docText.split(/\n{1,}/).map(s=>s.trim()).filter(Boolean):[];
+  const band=data?scoreBand(Number(data.risk_score)||0):null;
+  const notContract=data&&data.is_contract===false;
+  const canSpatial=data&&!notContract&&(data.redlines||[]).length>0;
+
+  return (
+    <div className="wrap">
+      <header className="bar no-print">
+        <a className="brand" href="#" onClick={(e)=>{e.preventDefault();reset();}}>FINEPRINT<sup>®</sup></a>
+        {view==="result"&&(
+          <div className="bar-actions">
+            {canSpatial&&<button className="btn red only-wide" onClick={()=>setSpatial(true)}>⤢ Spatial view</button>}
+            <button className="btn" onClick={()=>window.print()}>Export</button>
+            <button className="btn solid" onClick={reset}>New</button>
+          </div>
+        )}
+      </header>
+
+      {view==="idle"&&(
+        <section className="hero">
+          <p className="kick"><b>(01)</b> Contract redliner</p>
+          <h1>Read the <em>fine</em> print.</h1>
+          <div className="hgrid">
+            <div>
+              <p className="lede">Upload a lease, loan, job offer, NDA or terms. Fineprint marks the dangerous clauses, scores the risk out of ten, and tells you what to say back.</p>
+              <div className={"drop"+(over?" over":"")}
+                onDragOver={(e)=>{e.preventDefault();setOver(true);}} onDragLeave={()=>setOver(false)}
+                onDrop={(e)=>{e.preventDefault();setOver(false);onFile(e.dataTransfer.files[0]);}}>
+                <p className="dlabel">Drop file · PDF / image / text · max 12MB</p>
+                <p className="big">Drop your document here</p>
+                <div className="drow">
+                  <button className="pick" onClick={()=>inputRef.current.click()}>Choose a file</button>
+                  <button className="sample-link" onClick={loadSample}>Try a sample lease →</button>
+                </div>
+                <input ref={inputRef} type="file" accept="application/pdf,image/*,.txt" style={{display:"none"}} onChange={(e)=>onFile(e.target.files[0])}/>
+              </div>
+              <div className="trustrow"><span>Private</span><span>~10 seconds</span><span>Plain english</span></div>
+            </div>
+            <div className="scene" onMouseMove={(e)=>tilt(e,heroSheet.current)} onMouseLeave={()=>untilt(heroSheet.current)}>
+              <div className="float hfloat" ref={heroSheet}>
+                <span className="reg">®</span>
+                <div className="hbar" style={{width:"55%"}}></div>
+                <div className="hbar r" style={{width:"100%"}}></div><div className="hpin" style={{top:"30%"}}>1</div>
+                <div className="hbar" style={{width:"82%"}}></div>
+                <div className="hbar r" style={{width:"92%"}}></div><div className="hpin" style={{top:"54%"}}>2</div>
+                <div className="hbar" style={{width:"68%"}}></div>
+                <div className="hbar" style={{width:"88%"}}></div>
+                <div className="hbar r" style={{width:"74%"}}></div><div className="hpin" style={{top:"86%"}}>3</div>
+              </div>
+            </div>
+          </div>
+          {error&&<div className="err">{error}</div>}
+        </section>
+      )}
+
+      {view==="loading"&&(
+        <section className="scan">
+          <h2>Redlining {fileName?"“"+fileName+"”":"your document"}</h2>
+          <p className="status">{STATUSES[statusI]}</p>
+          <div className="doc-mock">
+            <div className="ln" style={{width:"70%"}}></div>
+            <div className="ln marked" style={{width:"100%"}}></div>
+            <div className="ln" style={{width:"86%"}}></div>
+            <div className="ln marked d2" style={{width:"94%"}}></div>
+            <div className="ln" style={{width:"60%"}}></div>
+            <div className="ln" style={{width:"90%"}}></div>
+            <div className="ln marked d3" style={{width:"78%"}}></div>
+            <div className="ln" style={{width:"50%",marginBottom:0}}></div>
+          </div>
+        </section>
+      )}
+
+      {view==="result"&&data&&(
+        <div className="results">
+          <div className="print-header"><span className="pn">FINEPRINT<sup style={{color:"var(--red)"}}>®</sup></span> — Contract analysis</div>
+          {notContract ? (
+            <div className="empty">
+              {data.doc_type&&<span className="doctype">{data.doc_type}</span>}
+              <p className="empty-h">Not a contract.</p>
+              <p className="empty-p">{data.note||data.tl_dr||"Fineprint reviews agreements — leases, loans, job offers, NDAs, insurance and terms of service. Upload one of those and I'll mark up the risky clauses."}</p>
+              <div className="empty-actions no-print">
+                <button className="pick" onClick={reset}>Analyze another document</button>
+                <button className="sample-link" onClick={loadSample}>or try the sample lease →</button>
+              </div>
+            </div>
+          ) : (
+          <div className="grid2">
+            <aside className="docwrap">
+              <div className="dochead"><span className="l">{docLabel}</span><span className="r">{fileName}</span></div>
+              <div className="scene" onMouseMove={(e)=>tilt(e,docSheet.current)} onMouseLeave={()=>untilt(docSheet.current)}>
+                <article className="float sheet" ref={docSheet}>
+                  {paras.length?paras.map((p,i)=>(<Paragraph key={i} text={p} needles={needles} activeId={activeId} markRefs={markRefs} onMarkClick={focusClause}/>)):<p style={{color:"var(--ink-3)"}}>Document preview isn't available for this file, but the full analysis is on the right.</p>}
+                </article>
+              </div>
+              {canSpatial&&<div className="spatial-cta only-wide"><button className="btn red" onClick={()=>setSpatial(true)}>⤢ Open spatial redline</button></div>}
+            </aside>
+
+            <main className="analysis">
+              <div className="riskbar">
+                <div>
+                  {data.doc_type&&<span className="doctype">{data.doc_type}</span>}
+                  {data.tl_dr&&<p className="tldr">{data.tl_dr}</p>}
+                </div>
+                {band&&(
+                  <div className="risk">
+                    <div className="rl-lab">Risk index</div>
+                    <div className="num" style={{color:band.c}}>{Number(data.risk_score)||0}<small>/10</small></div>
+                    <div className="gauge"><i style={{width:((Number(data.risk_score)||0)*10)+"%",background:band.c}}></i></div>
+                    <div className="band" style={{color:band.c}}>{band.label}</div>
+                  </div>
+                )}
+              </div>
+
+              {data.summary&&(<div className="block"><div className="sh"><span className="n">01</span><h3>Summary</h3></div>
+                <div className="summary">{String(data.summary).split(/\n{2,}/).map((p,i)=><p key={i}>{p}</p>)}</div></div>)}
+
+              {(data.redlines||[]).length===0&&<div className="note-ok">No major red flags found — this looks broadly fair. Still worth checking the key terms below.</div>}
+
+              {(data.redlines||[]).length>0&&(
+                <div className="block">
+                  <div className="sh"><span className="n">02</span><h3>Redlines</h3><span className="c">[{data.redlines.length}]</span>
+                    <div className="legend"><i><b style={{background:"var(--hi)"}}></b>H</i><i><b style={{background:"var(--md)"}}></b>M</i><i><b style={{background:"var(--lo)"}}></b>L</i></div></div>
+                  {data.redlines.map((r,i)=>(
+                    <div key={r.id} ref={el=>{if(el)redlineRefs.current[r.id]=el;}} className={"rl "+(r.risk||"low")+(activeId===r.id?" active":"")} onClick={()=>focusClause(r.id)}>
+                      <div className="idx">
+                        <div className="no">{String(i+1).padStart(2,"0")}</div>
+                        <div className="sv">{r.risk}</div>
+                        {r.clause_ref&&<div className="rf">{r.clause_ref}</div>}
+                      </div>
+                      <div className="main">
+                        {r.issue&&<p className="issue">{r.issue}</p>}
+                        {r.excerpt&&<span className="clause">“{r.excerpt}”</span>}
+                        {r.explanation&&<p className="why">{r.explanation}</p>}
+                        {r.suggestion&&<div className="fix"><b>Counter</b>{r.suggestion}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(data.obligations&&((data.obligations.you_owe||[]).length||(data.obligations.they_owe||[]).length))?(
+                <div className="block">
+                  <div className="sh"><span className="n">03</span><h3>Who owes what</h3></div>
+                  <div className="cols">
+                    <div className="obl you"><h4>You owe</h4><ul>{(data.obligations.you_owe||[]).map((o,i)=><li key={i}>{o}</li>)}</ul></div>
+                    <div className="obl them"><h4>They owe</h4><ul>{(data.obligations.they_owe||[]).map((o,i)=><li key={i}>{o}</li>)}</ul></div>
+                  </div>
+                </div>
+              ):null}
+
+              {(data.key_terms||[]).length>0&&(
+                <div className="block">
+                  <div className="sh"><span className="n">04</span><h3>Key terms</h3></div>
+                  <div className="terms">
+                    {data.key_terms.map((t,i)=>(<div className="term" key={i}><div className="k">{t.term}</div><div className="v">{t.meaning}</div>{t.risk_note&&<span className="flag">{t.risk_note}</span>}</div>))}
+                  </div>
+                </div>
+              )}
+
+              <div className="block no-print">
+                <div className="sh"><span className="n">05</span><h3>Ask about this document</h3></div>
+                <div className="ask">
+                  {qa.map((row,i)=>(<div className="qa" key={i}><p className="q">{row.q}</p><p className={"a"+(row.pending?" pending":"")}>{row.pending?"Reading the document…":<Answer text={row.a}/>}</p></div>))}
+                  <div className="askrow">
+                    <input value={question} placeholder="How do I get out of this early?" onChange={(e)=>setQuestion(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter")ask();}}/>
+                    <button onClick={()=>ask()} disabled={asking||!question.trim()}>{asking?"…":"Ask"}</button>
+                  </div>
+                  {qa.length===0&&(<div className="suggest">{["What's the worst clause here?","How do I get out of this early?","Is the deposit refundable?","What should I negotiate first?"].map((s,i)=>(<button key={i} onClick={()=>ask(s)}>{s}</button>))}</div>)}
+                </div>
+              </div>
+            </main>
+          </div>
+          )}
+        </div>
+      )}
+
+      <div className="foot no-print"><span>Fineprint® — Contract redliner</span><span>Information, not legal advice</span></div>
+
+      {spatial && canSpatial && (
+        <SpatialView paras={paras} needles={needles} redlines={data.redlines} onClose={()=>setSpatial(false)}/>
+      )}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
