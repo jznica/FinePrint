@@ -346,17 +346,33 @@ function extractJSON(text){let t=text.replace(/```json/gi,"").replace(/```/g,"")
 async function callClaude(system,userContent){
   const body=JSON.stringify({model:MODEL,max_tokens:4096,system,messages:[{role:"user",content:userContent}]});
   const opts={method:"POST",headers:{"Content-Type":"application/json"},body};
-  let resp=null;
-  try{ resp=await fetch(PROXY,opts); }catch(_){ resp=null; }
-  if(!resp || resp.status===404 || resp.status===405 || resp.status===501){
-    resp=await fetch(DIRECT,opts); // Claude preview / no proxy deployed
+  const parse=async(r)=>{const d=await r.json();return (d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();};
+  const errMsg=async(r)=>{try{const j=await r.json();return (j&&j.error&&(j.error.message||j.error))||"";}catch(_){return "";}};
+
+  // 1) Serverless proxy on your own domain (api/analyze.js)
+  let proxyResp=null;
+  try{ proxyResp=await fetch(PROXY,opts); }catch(_){ proxyResp=null; }
+  if(proxyResp){
+    if(proxyResp.ok) return parse(proxyResp);
+    if(proxyResp.status!==404 && proxyResp.status!==405 && proxyResp.status!==501){
+      const m=await errMsg(proxyResp); // proxy is live but errored (e.g. key not set)
+      throw new Error("Analysis function error "+proxyResp.status+(m?" — "+m:"")+".");
+    }
   }
-  if(!resp.ok){
-    let m=""; try{ const j=await resp.json(); m=(j&&j.error&&(j.error.message||j.error))||""; }catch(_){}
-    throw new Error("Service returned "+resp.status+(m?" — "+m:"")+".");
+
+  // 2) Handled direct endpoint — works only inside the Claude preview
+  let directResp=null;
+  try{ directResp=await fetch(DIRECT,opts); }catch(_){ directResp=null; }
+  if(directResp && directResp.ok) return parse(directResp);
+
+  // 3) Nothing worked — say precisely why
+  if(proxyResp && (proxyResp.status===404||proxyResp.status===405)){
+    throw new Error("No function at /api/analyze (HTTP "+proxyResp.status+"). Put api/analyze.js in an \"api\" folder at the repo root, set ANTHROPIC_API_KEY, and redeploy.");
   }
-  const data=await resp.json();
-  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+  if(directResp && !directResp.ok){
+    const m=await errMsg(directResp); throw new Error("Service returned "+directResp.status+(m?" — "+m:"")+".");
+  }
+  throw new Error("Couldn't reach the analysis service. If this is your live site, deploy api/analyze.js and set ANTHROPIC_API_KEY, then redeploy.");
 }
 function docBlock(p){
   if(p.kind==="text") return {type:"text",text:"DOCUMENT:\n"+p.text};
