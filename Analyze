@@ -1,18 +1,17 @@
-// api/analyze.js  —  Vercel serverless function
-// Holds your Anthropic key server-side and forwards the request the
-// browser cannot make directly (CORS + key exposure).
+// api/analyze.js  —  Vercel serverless function (CommonJS, deploys anywhere)
+// Holds your Anthropic key server-side and forwards the request the browser
+// cannot make directly (CORS + key exposure).
 //
 // SETUP (one time):
-//   1. Put this file at:  api/analyze.js   (next to your index.html)
-//   2. In Vercel → Project → Settings → Environment Variables, add:
-//        ANTHROPIC_API_KEY = sk-ant-...        (your key from console.anthropic.com)
-//   3. Redeploy.
+//   1. Put this file at:  api/analyze.js   (an "api" folder at the REPO ROOT,
+//      next to index.html — not inside any other folder).
+//   2. Vercel → Project → Settings → Environment Variables:
+//        ANTHROPIC_API_KEY = sk-ant-...     (Production scope)
+//   3. Redeploy (env vars only apply to NEW deployments).
 //
-// That's it. The front-end already calls /api/analyze automatically.
+// The front-end already calls /api/analyze automatically.
 
-export const config = { maxDuration: 60 }; // allow long analyses (Hobby plan max)
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ error: { message: "Method not allowed. Use POST." } });
     return;
@@ -26,7 +25,7 @@ export default async function handler(req, res) {
 
   try {
     // req.body is the JSON the browser sent: { model, max_tokens, system, messages }
-    const body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    const body = typeof req.body === "string" ? req.body : JSON.stringify(req.body || {});
 
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -38,11 +37,11 @@ export default async function handler(req, res) {
       body
     });
 
-    const text = await upstream.text(); // pass through verbatim (incl. error bodies)
+    const text = await upstream.text(); // pass response through verbatim (incl. errors)
     res.status(upstream.status);
     res.setHeader("content-type", "application/json");
     res.send(text);
   } catch (e) {
     res.status(502).json({ error: { message: "Proxy failed to reach Anthropic: " + String(e) } });
   }
-}
+};
