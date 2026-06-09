@@ -249,13 +249,15 @@
 const { useState, useRef, useEffect } = React;
 
 /* ============================================================
-   CONFIG — change one line before going live on Vercel.
-   In the Claude preview, api.anthropic.com is handled (no key).
-   On Vercel, add a serverless function at /api/analyze that
-   forwards to Anthropic with your key, then set:
-        ENDPOINT = "/api/analyze";
+   ENDPOINT — you don't need to edit this.
+   - On your own host (Vercel), requests go to /api/analyze, a
+     serverless function (api/analyze.js) that adds your key
+     server-side. Set ANTHROPIC_API_KEY in Vercel and deploy.
+   - Inside the Claude preview /api/analyze doesn't exist, so the
+     app automatically falls back to the handled direct endpoint.
    ============================================================ */
-const ENDPOINT = "https://api.anthropic.com/v1/messages";
+const PROXY = "/api/analyze";
+const DIRECT = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-sonnet-4-20250514";
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 const REDUCED = typeof matchMedia!=="undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -342,9 +344,17 @@ const STATUSES = ["READING THE CLAUSES","FLAGGING ONE-SIDED TERMS","SCORING THE 
 function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=()=>rej(new Error("Could not read that file."));r.readAsDataURL(file);});}
 function extractJSON(text){let t=text.replace(/```json/gi,"").replace(/```/g,"").trim();const a=t.indexOf("{"),b=t.lastIndexOf("}");if(a===-1||b===-1)throw new Error("No analysis returned.");return JSON.parse(t.slice(a,b+1));}
 async function callClaude(system,userContent){
-  const resp=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:MODEL,max_tokens:4096,system,messages:[{role:"user",content:userContent}]})});
-  if(!resp.ok) throw new Error("Service returned "+resp.status+".");
+  const body=JSON.stringify({model:MODEL,max_tokens:4096,system,messages:[{role:"user",content:userContent}]});
+  const opts={method:"POST",headers:{"Content-Type":"application/json"},body};
+  let resp=null;
+  try{ resp=await fetch(PROXY,opts); }catch(_){ resp=null; }
+  if(!resp || resp.status===404 || resp.status===405 || resp.status===501){
+    resp=await fetch(DIRECT,opts); // Claude preview / no proxy deployed
+  }
+  if(!resp.ok){
+    let m=""; try{ const j=await resp.json(); m=(j&&j.error&&(j.error.message||j.error))||""; }catch(_){}
+    throw new Error("Service returned "+resp.status+(m?" — "+m:"")+".");
+  }
   const data=await resp.json();
   return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
 }
